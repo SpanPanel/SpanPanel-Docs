@@ -1,35 +1,5 @@
 # Home Assistant Synthetic Sensors Integration Requirements
 
-This document outlines the requireme### Initial Configuration Creation
-
-**Requirement**: Integration creates initial YAML configuration with file-based storage.
-
-**Current Implementation Status**: ✅ **FULLY IMPLEMENTED**
-- SPAN integration generates YAML configurations
-- Package loads sensors from YAML files
-- Updates work through file-based operations
-- Integration handles all YAML lifecycle management
-
-**Responsibilities**:
-
-- Create YAML sensor definitions with proper entity_ids and device associations
-- Generate configuration files in HA config directories  
-- Manage YAML updates through file operations (generate_config, update, remove)
-- Initiate package reloads when YAML configuration changes
-
-**Interface Contract**:
-
-- **YAML**: Direct file-based YAML configuration that package loads
-- **File Management**: Integration controls YAML file creation, updates, and deletion
-- **Package Interaction**: Package loads configuration from YAML files provided by integration
-
-**Missing Implementation** (Phase 4):
-
-- Storage manager for HA native storage
-- JSON-based configuration persistence
-- Storage-based CRUD operations
-- Migration from file-based to storage-based configurationing the `ha-synthetic-sensors` package with Home Assistant integrations, focusing on device-aware entity naming, local storage management, and runtime synchronization.
-
 ## Overview
 
 The synthetic sensors package enables the HA Integration to create calculated sensors that appear as native entities under the SPAN HA Integration's devices.
@@ -111,9 +81,9 @@ Based on the actual SPAN integration implementation, the correct order and requi
 **Create data provider callback** - Set up function to supply live data from SPAN API to synthetic sensors
 **Configure synthetic package** - Set up domain integration and data provider callback
 **Load synthetic package with YAML** - Initialize synthetic sensors using generated file-based YAML configuration
- **Register synthetic sensors with HA** - Create and add synthetic sensor entities through package interface
+**Register synthetic sensors with HA** - Create and add synthetic sensor entities through package interface
 
-Phase 4: Storage Integration (**NOT YET IMPLEMENTED**)
+Storage Integration
 **Implement package storage manager** - Replace file-based YAML with HA storage-based configuration management
 **Migrate YAML to storage** - Convert existing file-based configurations to storage-managed configurations
 **Enable storage-based CRUD operations** - Support add/update/delete operations through storage interface
@@ -133,7 +103,7 @@ Phase 4: Storage Integration (**NOT YET IMPLEMENTED**)
 **Interface Contract**:
 
 - **YAML**: Direct mapping from existing YAML configuration schema with configuration sensor_set_id
-- **Multiple Configurations**: Integration can create multiple configurations (integration defaults, user customs, etc.)
+- **Multiple Configurations**: Integration can create multiple configurations (integration defaults, integration optional, user custom, etc.)
 
 ### Configuration Organization and Storage
 
@@ -142,12 +112,10 @@ Phase 4: Storage Integration (**NOT YET IMPLEMENTED**)
 - Integration provides declarative sensor definitions, package determines optimal storage structure
 - Integration creates configuration sensor_set_id and sensor definitions, delegates storage anctivity to package
 - Package owns and manages all storage complexity including normalization and entity reference management
-- Package stores and merges integration definitions in storage and cache
-- Package storage manager provides CRUD methods for complete sensors and sensor attributes
-- Package storage manager takes base bulk sensor YAML and merges existing sensors with additional sensor attributes already in storage
+- Package exposes a bulk interface for taking integration initial yaml definitions or other imports
+- Package storage manager provides CRUD methods for complete sensors
 - Integrtation CRUD pattern to modify a single sensor is to read the full sensor (with attributes), modify, and write
-- Package handles entity_id reference normalization within formulas/variables to optimize for efficient rename operations
-- Package listens for entity_id changes on the HA event bus and renames any entity_ids in the storage
+- Package listens for entity_id changes on the HA event bus and renames any entity_ids in the storage, flushes relevant cache, etc.
 
 **Storage Management Interface**:
 
@@ -190,17 +158,16 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
 ### Entity ID Override with Device Association
 
-**Device Association Independence**:
+**Device Association**:
 
 - Package associates sensors with devices using `device_identifier` regardless of entity_id format
 - No validation or enforcement of device prefix patterns in entity_id
-- Integration controls entity_id completely, including legacy cases without device prefixes
+- Integration controls initial (bulk load) entity_id definitions completely
 - Package uses `device_identifier` for device registry lookup independent of entity_id naming
 
 **External Entity References**:
 
 - Formula and variable references to external entities do not require device association
-- External entity references handled through normalization without device constraints
 - HA enforces entity_id uniqueness automatically with suffix patterns (`_2`, `_3`, etc.)
 
 **Entity ID Override Examples**:
@@ -334,30 +301,40 @@ sensors:
 
 **Entity Rename Handling**:
 
-- **No automatic monitoring**: Package does not currently monitor entity registry events for entity renames
-- **Manual update required**: Entity renames require manual intervention to update synthetic sensor configurations
-- **Configuration update triggers**: When configurations are updated with new entity_ids, the package clears formula cache and updates dependency tracking
-- **Simple implementation**: Direct storage scanning and replacement is appropriate for small datasets when manual updates occur
+**Current Package Behavior** (needs implementation):
 
-**Current Package Behavior**:
-- Formula cache is cleared when sensor configurations are updated (`evaluator.clear_cache()`)
-- Dependency listeners are updated when entity references change in formulas
-- No automatic entity_id migration - requires integration or user intervention
+- Package listens for entity registry events and updates storage when entity_ids change
+- On existing installs the integration gets any needed information from the package/storage
+- Formula cache is cleared when entity references change due to renames
+- Dependency listeners are updated automatically when entity_ids change in storage
 
 **Integration Responsibilities**:
 
+- Provide migration that checks for existing sensor values and creates yaml for package/storage
+- Provide migration that looks for existing solar configuration an initialize yaml for package/storage
 - Generate unique config_id (sensor_set_id) for each configuration
+- Only generate new sensors/entity_ids for sensors that don't exist in registry (options: solar/battery)
 - Provide sensor definitions with entity_ids in variables/formulas
 - Request configuration operations (create, update, remove) through package interface
 - Handle device lifecycle and notify package of device-related changes
 
 **Package Responsibilities**:
 
-- Accept declarative sensor definitions from integration
+- Accept declarative sensor definitions from integration in YAML form
+- Implement entity registry event listener to detect entity_id changes
+- Update storage automatically when entity_ids change in registry
 - Store entity_ids directly in sensor configurations as they appear in YAML
-- Manage storage structure and optimization internally  
+- Manage storage structure and optimization internally
 - Provide configuration management interface to integration
 - Clear formula cache and update dependency tracking when configurations change
+
+**Storage Manager Implementation Requirements**:
+
+- **Entity Registry Integration**: Monitor entity registry events for entity_id changes
+- **Automatic Configuration Updates**: Update stored configurations when entities are renamed
+- **Registry-first Entity Resolution**: Query registry by unique_id before creating new entity_ids
+- **Storage-based CRUD Operations**: Replace file-based operations with storage-based sensor management
+- **Migration Support**: Convert existing file-based configurations to storage format
 
 ### Device Prefix Resolution Method
 
@@ -504,3 +481,22 @@ except ConfigurationError as e:
 - The synthetic package manages JSON storage internally, using a handle to the Home Assistant storage system provided by the integration.
 - All configuration persistence (writes/reads) is handled by the package, but the integration always interacts with the package using YAML as the authoritative format.
 - This design allows the integration to easily export, import, or present sensor sets to the user in a human-readable format, while the package ensures atomic, validated storage and sensor lifecycle management.
+
+## Implementation Priority: Storage Manager with Entity Registry Integration
+
+The storage manager implementation is critical to resolve the entity registry compatibility issue. The implementation must address both new installations and existing installations with user-renamed entities.
+
+**Storage Manager Core Requirements**:
+
+1. **Entity Registry Query Interface**: Look up current entity_ids by unique_id before configuration creation
+2. **Entity Registry Event Listener**: Monitor for entity_id changes and update storage automatically  
+3. **Storage-based Configuration Management**: Replace file-based YAML with HA storage operations
+4. **Automatic Configuration Synchronization**: Keep stored configurations in sync with entity registry changes
+5. **Migration from File-based to Storage-based**: Convert existing YAML configurations to storage format
+
+**Integration Workflow Changes**:
+
+1. **Existing Install Detection**: Check if sensors already exist in entity registry
+2. **Registry-first Entity Resolution**: Use existing entity_ids from registry instead of generating new ones
+3. **Conditional Configuration Creation**: Only create new configurations when sensors don't exist
+4. **Storage-based Updates**: Use storage manager for sensor lifecycle operations instead of file operations
