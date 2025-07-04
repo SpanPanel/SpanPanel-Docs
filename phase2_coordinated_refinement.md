@@ -2,7 +2,11 @@
 
 ## Overview
 
-The synthetic sensors package enables the HA Integration to create calculated sensors that appear as native entities under the SPAN HA Integration's devices.
+T**Storage Integration (v1.2.0)**:
+
+- Implement package storage manager with HA storage-based configuration management with YAML interface
+- Migrate from v1.1 to v1.2.0 by converting existing configurations through generating YAML from installed configuration and creating storage
+- Enable storage-based CRUD operations supporting add/update/delete operations through YAML-based storage interfacenthetic sensors package enables the HA Integration to create calculated sensors that appear as native entities under the SPAN HA Integration's devices.
 The system uses Home Assistant's local storage for configuration persistence and implements automatic entity rename synchronization.
 
 ## Configuration Schema Authority
@@ -76,7 +80,7 @@ The integration workflow requirements are:
 **Storage Integration (v1.2.0)**:
 
 - Implement package storage manager with HA storage-based configuration management with YAML interface
-- Migrate from v1.0 to v1.2.0 by converting existing configurations through generating YAML from installed configuration and creating storage
+- Migrate from v1.1 to v1.2.0 by converting existing configurations through generating YAML from installed configuration and creating storage
 - Enable storage-based CRUD operations supporting add/update/delete operations through YAML-based storage interface
 
 ### Initial Configuration Creation
@@ -295,7 +299,7 @@ sensors:
 - Update stored configurations when entities are renamed
 - Query registry by unique_id before creating new entity_ids
 - HA storage operations with YAML interface for sensor management
-- Migration from v1.0 to v1.2.0 by converting existing configurations to storage format
+- Migration from v1.1 to v1.2.0 by converting existing configurations to storage format
 
 ### Multiple Configuration Lifecycle
 
@@ -415,9 +419,9 @@ except ConfigurationError as e:
 - The synthetic package manages JSON storage internally, using a handle to the Home Assistant storage system provided by the integration
 - All configuration persistence (writes/reads) is handled by the package, but the integration always interacts with the package using YAML as the authoritative format
 
-**Migration from v1.0 to v1.2.0**:
+**Migration from v1.1 to v1.2.0**:
 
-- v1.0 installations will be migrated by generating YAML from the existing installed entity configuration
+- v1.1 installations will be migrated by generating YAML from the existing installed entity configuration
 - Generated YAML is passed to the package for initial v1.2.0 storage creation
 - Post-migration, all changes use the v1.2.0 YAML-to-storage interface
 
