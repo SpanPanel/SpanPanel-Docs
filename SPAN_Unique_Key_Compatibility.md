@@ -5,11 +5,10 @@ since the entity id will match but the unique ID will not. This behavior will re
 as the new sensor will not match the old sensor with the existing history. The integration has tests
 to specifically ensure compatibility from one release to the next.
 
-
-**Key Insight - Unique IDs vs Entity IDs:**
+**Unique IDs vs Entity IDs:**
 
 - **Unique IDs**: Provide statistics continuity, must be migrated and preserved during upgrades
-- **Entity IDs**: Can change based on version and user configuration flags
+- **Entity IDs**: Primary reference for user templates and UI; Can change based on version and user configuration flags, maybe renamed by user.
 
 **How circuit_id is determined:**
 
@@ -67,7 +66,7 @@ is directly created in the registry as the unique ID.  As seen in the examples f
 the unique ID is generated from the span-panel-api package sensors directly reflecting what the SPAN
 panel returns for circuit data. User defined circuits are hand crafted but again these sensor keys must be unique.
 
-## Solar Synthetics
+## Integration Manaaged Solar Synthetics
 
 The SpanPanel integration has an option configuration to define two legs (different phases) in order
 two produce one 240V circuit where the two 120V legs are added together for both power and energy.  This configuration
@@ -83,94 +82,12 @@ consistent with standard synthetic unique ID's
 span_{serial_number}_synthetic_{leg1}_{leg2}_{yaml_key}
 ```
 
-| Sensor Type | Unique ID Example | Description |
-|-------------|-------------------|-------------|
-| **Instant Power** | `span_abc123_synthetic_15_16_solar_inverter_instant_power` | Solar inverter power |
-| **Energy Produced** | `span_abc123_synthetic_15_16_solar_inverter_energy_produced` | Solar energy produced |
-| **Energy Consumed** | `span_abc123_synthetic_15_16_solar_inverter_energy_consumed` | Solar energy consumed |
-| **Energy Consumed** | `span_nj-2316-005k6_synthetic_30_32_solar_inverter_energy_consumed` | Solar energy consumed (real example) |
-
 **Migration Behavior:**
 
-- **Status**: **MIGRATED** during upgrade to v1.2.0+ (unique_id updated)
-- **Statistics**: **PRESERVED** through entity registry unique_id migration
-- **Pattern**: Updated to use simplified `span_{serial}_{sensor_key}` format
+Pre v1.2.0 Legacy HA config version is 1.0
+Post v1.2.0 HA config version is 2.0
 
-### Current Solar Sensors (v1.2.0+)
-
-**New Solar Sensor Unique ID Pattern:**
-
-```text
-span_{serial_number}_{sensor_key}
-```
-
-**Examples:**
-
-- `span_abc123_solar_inverter_power`
-- `span_abc123_solar_inverter_energy_produced`
-- `span_abc123_solar_inverter_energy_consumed`
-
-**Implementation:**
-
-- **Unique ID migration**: Legacy solar sensors have their unique_ids updated in entity registry
-- **Statistics preserved**: Historical data maintained through migration
-- **Simplified pattern**: No "synthetic" designation in unique_id
-- **Consistent naming**: Matches all other synthetic sensor patterns
-
-## Migration Strategy
-
-### Upgrade from Pre-Synthetic Storage to Synthetic Usage (v1.2.0+)
-
-**SPAN HA Integration Migration Approach:**
-
-**Unique ID Migration:**
-
-1. **Query for existing synthetics**: Search entity registry for unique_ids containing "synthetic"
-2. **Extract sensor keys**: Parse `span_{serial}_synthetic_{leg1}_{leg2}_{yaml_key}` to get `yaml_key`
-3. **Migrate unique_ids**: Update existing sensors to use simplified `span_{serial}_{sensor_key}` pattern
-4. **Preserve statistics**: Entity statistics and history are maintained through unique_id migration
-5. **Create new unmapped tabs**: Add unmapped tab native sensors for synthetic sensor dependencies
-
-**Migration Behavior:**
-
-- **Legacy solar sensors**: `span_abc123_synthetic_15_16_solar_inverter_instant_power` → **MIGRATED TO** → `span_abc123_solar_inverter_power`
-- **Statistics preserved**: Historical data maintained through entity registry unique_id update
-- **Unmapped tabs**: `span_abc123_unmapped_tab_32_instantPowerW` → **CREATED** (new native sensors)
-
-**Rationale:**
-
-- **Statistics preservation**: Users keep their historical synthetic sensor data
-- **Simplified pattern**: Future sensors use clean `span_{serial}_{sensor_key}` format
-- **Backward compatibility**: Existing installations continue working seamlessly
-
-### Fresh Installation
-
-**New Installation Behavior:**
-
-- All synthetic sensors use simplified pattern: `span_{serial}_{sensor_key}`
-- No legacy "synthetic" patterns created
-- Consistent with unified naming approach
-- Clean unique_id structure from start
-
-## Key Differences
-
-| Aspect | Regular Circuits | Unmapped Tabs | Legacy Solar Sensors | Current Synthetic Sensors |
-|--------|------------------|---------------|---------------------|---------------------------|
-| **Handler** | SPAN HA Integration (native) | SPAN HA Integration (native) | ha-synthetic-sensors | ha-synthetic-sensors |
-| **Unique ID Pattern** | `span_{serial}_{circuit_id}_{desc_key}` | `span_{serial}_unmapped_tab_{num}_{desc_key}` | `span_{serial}_synthetic_{leg1}_{leg2}_{yaml_key}` | `span_{serial}_{sensor_key}` |
-| **Generation** | Individual entities | Individual entities | Auto-generated (legacy) | User/Integration defined |
-| **Naming** | Circuit-id based | Unmapped tab based | Legacy synthetic pattern | Simplified sensor key |
-| **Visibility** | User visible | Hidden from UI | User visible | User visible |
-| **Purpose** | Normal circuit monitoring | Synthetic sensor inputs | Solar calculations | General calculations |
-| **Setup Timing** | Standard | Before synthetics | After native sensors | After native sensors |
-| **Multi-Panel** | Serial in unique ID | Serial in unique ID | Serial in unique ID | Serial in unique ID |
-| **Compatibility** | Stable across versions | Never deployed in prod | Migrated during upgrade | v1.0.10+ simplified naming |
-
-## Existing Installation Unique Key Patterns
-
-The following patterns are used by existing installations and can be found in the Home Assistant entity registry:
-
-### Regular Circuit Entities (All Versions)
+### New Installation
 
 **Unique ID Pattern:** `span_{serial_number}_{circuit_id}_{description_key}`
 
@@ -197,14 +114,14 @@ The following patterns are used by existing installations and can be found in th
 - **Native Sensors**: These are integration provided circuit sensors, not synthetic sensors
 - **Naming Stability**: Never subject to entity ID naming pattern changes
 - **Visibility**: Not user visible - marked as invisible in Home Assistant UI (`entity_registry_visible_default=False`)
-- **Purpose**: Provide stable entity IDs for synthetic sensor calculations like solar or user define synthetics
+- **Purpose**: Provide operands for synthetic sensor calculations like solar or user define synthetics
 - **Setup Timing**: Created and added to HA **before** synthetic sensors to ensure proper dependency order
 
 ### Panel-Level Entities (All Versions)
 
 Panel level circuits are provided directly by the integration and are not themselves synthetics
 
-**Unique ID Pattern:** `span_{serial_number}_{panel_key}`
+**Unique ID Pattern:** `span_{serial_number}_{sensor_key}_{suffix}`
 
 | Entity Type | Unique ID Example | Description |
 |-------------|-------------------|-------------|
@@ -213,29 +130,7 @@ Panel level circuits are provided directly by the integration and are not themse
 | **Panel Info** | `span_abc123_softwarever` | Panel software version |
 | **Door State** | `span_abc123_doorstate` | Panel door open/closed |
 
-**Special Characteristics:**
-
-- **Naming Stability**: Never subject to entity ID naming pattern changes
-
-### Legacy Solar Synthetic Sensors (v1.2.0+)
-
-**Unique ID Pattern:** `span_{serial_number}_synthetic_{leg1}_{leg2}_{yaml_key}`
-
-| Sensor Type | Unique ID Example | Description |
-|-------------|-------------------|-------------|
-| **Instant Power** | `span_abc123_synthetic_15_16_solar_inverter_instant_power` | Solar inverter power |
-| **Energy Produced** | `span_abc123_synthetic_15_16_solar_inverter_energy_produced` | Solar energy produced |
-| **Energy Consumed** | `span_abc123_synthetic_15_16_solar_inverter_energy_consumed` | Solar energy consumed |
-
-**Implementation Details:**
-
-- **Provided by**: ha-synthetic-sensors package (legacy)
-- **Source Data**: Used unmapped tab entities as calculation inputs
-- **Migration Status**: **MIGRATED** during upgrade to v1.2.0+ (unique_id updated)
-- **Statistics**: **PRESERVED** through entity registry unique_id migration
-- **New Pattern**: Updated to use simplified `span_{serial}_{sensor_key}` unique_id pattern
-
-### Current Synthetic Sensors (v2.0+)
+### Synthetic Sensors (v1.2.0+)
 
 **Unique ID Pattern:** `span_{serial_number}_{sensor_key}`
 
@@ -245,26 +140,19 @@ Panel level circuits are provided directly by the integration and are not themse
 | **Backup Circuits** | `span_abc123_backup_circuits_power` | Backup circuit total |
 | **Custom Calculation** | `span_abc123_whole_house_efficiency` | User-defined calculation |
 
-**Implementation Details:**
-
-- **Provided by**: ha-synthetic-sensors package with SPAN HA Integration configuration
-- **Pattern**: Simplified, no "synthetic" designation
-- **Flexibility**: SPAN HA Integration defines sensor keys based on functionality
-- **Consistency**: Matches simplified naming approach across all sensor types
-
 ## Sensor Setup Timing and Dependencies
 
-**Critical Timing Requirements:**
+**Timing Requirements:**
 
 The SPAN HA Integration must ensure proper setup of the device and unmapped circuits first order to prevent startup
 errors where synthetic sensors reference unavailable entities.
 
 **Setup Sequence (v2.1.0+):**
 
-1. **Device First**: The device must be configured first so that synthetics can look up the device name as sensor prefix
-2. **Native Sensors First**: Create all native sensors (panel-level, unmapped tabs, hardware status) that could be used in synthetic references
-3. **Add to Home Assistant**: Call `async_add_entities(entities)` to register native sensors
-4. **Synthetic Sensors Last**: Set up synthetic sensors that depend on the now-available device and native sensors
+1. The device must be configured first so that synthetics can look up the device name as sensor prefix
+2. Create all native sensors (panel-level, unmapped tabs, hardware status) that could be used in synthetic references
+3. Call `async_add_entities(entities)` to register native sensors
+4. Set up synthetic sensors that depend on the now-available device and native sensors
 
 **Dependency Hierarchy:**
 
