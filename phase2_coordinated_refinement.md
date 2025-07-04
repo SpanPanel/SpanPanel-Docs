@@ -52,9 +52,8 @@ sensors:
 - **User-defined (custom) sensors**: `entity_id` may be omitted and will be generated using standard HA mechanisms from the `name` field
 - **Device association for user sensors**: `device_identifier` is optional in user-defined YAML; if provided, sensor associates with device, otherwise no device association
 - **When `entity_id` is provided**: Package uses the explicit entity_id as-is, no validation against device prefix patterns
-- **When `entity_id` is omitted**: Package generates entity_id using sluggification mechanisms from device_name and sensor name
-- **When `entity_id` and `name` is omitted**: Package generates entity_id using sluggification mechanisms from unique_id
-- **Use Helpers for ID generation** Integration and packages should use helpers, avoiding direct in-line ID creation
+- **When `entity_id` is omitted**: Package generates entity_id using standard HA slugify mechanisms from device_name and sensor name
+- **When both `entity_id` and `name` are omitted**: Package generates entity_id using standard HA slugify mechanisms from unique_id
 - **Existing entity handling**: If entity with specified `entity_id` already exists, HA updates the existing entity (standard HA behavior)
 - **Entity Collision**: HA automatically resolves entity_id conflicts by adding qualifier suffixes like '_2', '_3', etc. when registering duplicate entity_ids
 - **No validation enforcement**: Package trusts explicit entity_id values completely, allowing maximum integration flexibility
@@ -67,7 +66,7 @@ The integration workflow requirements are:
 - Register device in device registry with proper `device_identifier` before synthetic sensor creation
 - Create native HA sensors (panel sensors, unmapped circuits, and hardware status sensors that synthetics will depend on)
 - Add native entities to HA by calling `async_add_entities()` to register native sensors in Home Assistant
-- Generate YAML configuration with synthetic sensor definitions, proper entity_ids and device associations
+- Create YAML configuration with synthetic sensor definitions, proper entity_ids and device associations
 - Register backing entity IDs with synthetic package for virtual entities the integration can provide data for
 - Create data provider callback to supply live data from SPAN API to synthetic sensors
 - Configure synthetic package with domain integration and data provider callback
@@ -213,7 +212,7 @@ for sensor_set_id in self.managed_configurations:
 **SPAN HA Integration Requirements**:
 
 - Pass integration domain to package during setup
-- Generate YAML configurations with device_identifier fields
+- Create YAML configurations with device_identifier fields
 - Use current formula/variable structure (direct entity_id references or variable references)
 - Maintain current YAML structure
 
