@@ -2,15 +2,15 @@
 
 ## Overview
 
-Syn2 (Synthetic Sensors v2) is a standalone Python package that enables users to create custom mathematical sensors using
-any Home Assistant entity as input. This system provides flexible energy analysis and calculation capabilities through
-YAML configuration.
+Syn2 (Synthetic Sensors v2) is a standalone Python package that enables users to create custom mathematical sensors using any
+Home Assistant entity as input. This system provides flexible energy analysis and calculation capabilities through YAML
+configuration.
 
 ### Key Concept
 
-Syn2 allows you to create synthetic sensors using mathematical equations with any number of
-parameters. The syntax uses sensor keys as unique identifiers and flattened single-formula sensors.
-Multi-formula sensors use calculated attributes to provide rich data without cluttering the UI.
+Syn2 allows you to create synthetic sensors using mathematical equations with any number of parameters. The syntax uses
+sensor keys as unique identifiers and flattened single-formula sensors. Multi-formula sensors use calculated attributes to
+provide rich data without cluttering the UI.
 
 ### Core Capabilities
 
@@ -24,14 +24,14 @@ Multi-formula sensors use calculated attributes to provide rich data without clu
 ### Dynamic Entity Aggregation Functions and Attribute Access
 
 Syn2 supports aggregation and attribute access patterns for Home Assistant entities. This enables users to sum, average,
-count, or otherwise aggregate values from groups of entities selected by device class, regex, tag/label, area, or
-attribute conditions, as well as directly access entity attributes using dot notation.
+count, or otherwise aggregate values from groups of entities selected by device class, regex, tag/label, area, or attribute
+conditions, as well as directly access entity attributes using dot notation.
 
 **Current Features:**
 
 - **Variable Inheritance**: Attribute formulas inherit parent sensor variables
 - **Dot Notation**: Entity attribute access via `entity.attribute_name`
-- **Dynamic Collections**: Aggregate entities by regex, device_class, tags, area, or attribute conditions
+- **Dynamic Collections**: Aggregate entities by regex, device_class, label, area, or attribute conditions
 - **Mathematical Functions**: Full suite including count(), std(), var(), trigonometry, and more
 - **Runtime Resolution**: Dynamic entity discovery and value aggregation
 
@@ -93,8 +93,7 @@ Home Assistant templates are powerful but have limitations for complex mathemati
 - Integration with Jinja2 filters and Home Assistant context
 - Real-time dashboard displays that don't need sensor history
 
-**Using Templates WITH Synthetic Sensors:**
-Template sensors can serve as inputs to synthetic sensors for complex workflows:
+**Using Templates WITH Synthetic Sensors:** Template sensors can serve as inputs to synthetic sensors for complex workflows:
 
 ```yaml
 # Template sensor for dynamic logic
@@ -112,9 +111,8 @@ template:
 
       - name: "Peak Load Factor"
         state: >
-          {% set peak_devices = ['sensor.hvac_power', 'sensor.water_heater_power', 'sensor.ev_charger_power'] %}
-          {% set total = peak_devices | map('states') | map('float', 0) | sum %}
-          {{ (total / 7200) | round(2) }}  # 7200W theoretical max
+          {% set peak_devices = ['sensor.hvac_power', 'sensor.water_heater_power', 'sensor.ev_charger_power'] %} {% set total
+          = peak_devices | map('states') | map('float', 0) | sum %} {{ (total / 7200) | round(2) }}  # 7200W theoretical max
 
 # Synthetic sensor using template results
 sensors:
@@ -339,7 +337,7 @@ _Sums all window sensors in the garage area._
 sensors:
   tagged_sensors_sum: # This sensor key IS the unique_id
     name: "Sum of Tagged Sensors" # Friendly name for HA UI
-    formula: sum(tags:tag2,tag5)
+    formula: sum(label:tag2,tag5)
     unit_of_measurement: "W"
     device_class: "power"
     state_class: "measurement"
@@ -363,33 +361,32 @@ _Sums all sensors with a `battery_level` attribute less than 20._
 
 ### YAML Quoting Guidance for Query Patterns
 
-When using query patterns (such as `tags:`, `device_class:`, `regex:`, etc.) in formulas, you may use either quoted or
+When using query patterns (such as `label:`, `device_class:`, `regex:`, etc.) in formulas, you may use either quoted or
 unquoted forms:
 
 - **Unquoted**: Works for simple patterns with no spaces or special YAML characters.
-- **Quoted**: Required if your tag, device class, or pattern contains spaces or special characters (such as `:`, `#`, `,`, etc.).
+- **Quoted**: Required if your tag, device class, or pattern contains spaces or special characters (such as `:`, `#`, `,`,
+  etc.).
 
 **Examples:**
 
 ```yaml
 # No spaces or special characters: quotes optional
-formula: sum(tags:tag2,tag5)
+formula: sum(label:tag2,tag5)
 formula: sum(device_class:door|window)
 
 # Spaces or special characters: quotes required
-formula: sum("tags:my tag with spaces,tag2")
-formula: sum('tags:tag2,#tag3')
+formula: sum("label:my tag with spaces,tag2")
+formula: sum('label:tag2,#tag3')
 ```
 
-**Tip:**
-If in doubt, use quotes. Both single and double quotes are supported.
+**Tip:** If in doubt, use quotes. Both single and double quotes are supported.
 
 ### Dot Notation and Attribute Shortcuts
 
 For simple and direct access to entity attributes, Syn2 supports dot notation in formulas:
 
-- **Full attribute path:**
-  Reference any attribute using `entity_id.attributes.attribute_name`
+- **Full attribute path:** Reference any attribute using `entity_id.attributes.attribute_name`
 
   ```yaml
   formula: sensor1.attributes.battery_level
@@ -397,9 +394,8 @@ For simple and direct access to entity attributes, Syn2 supports dot notation in
 
   This resolves to the value of the `battery_level` attribute of `sensor1`.
 
-- **Attribute shortcut:**
-  If the attribute is not a state property, `entity_id.attribute_name` will resolve to `entity_id.attributes.attribute_name`
-  if present.
+- **Attribute shortcut:** If the attribute is not a state property, `entity_id.attribute_name` will resolve to
+  `entity_id.attributes.attribute_name` if present.
 
   ```yaml
   formula: sensor1.battery_level
@@ -420,16 +416,16 @@ For simple and direct access to entity attributes, Syn2 supports dot notation in
 - All aggregation functions (`sum`, `avg`, `count`, etc.) support these query patterns.
 - Dot notation for attribute access is supported everywhere a variable or entity can be referenced.
 - These features are designed to be user-friendly, and compatible with YAML best practices.
-- **Sensor Key = Unique ID**: The YAML sensor key (e.g., `open_doors_and_windows`) IS the unique_id. No separate
-  `unique_id` field is needed.
+- **Sensor Key = Unique ID**: The YAML sensor key (e.g., `open_doors_and_windows`) IS the unique_id. No separate `unique_id`
+  field is needed.
 - **Name = Friendly Name**: The `name` field provides the human-readable display name in Home Assistant UI.
 - **Recommended Fields**: While only `formula` is required, adding `device_class`, `state_class`, and `unit_of_measurement`
   ensures proper Home Assistant integration.
 
 ### Variable Inheritance in Attribute Formulas
 
-Attribute formulas automatically inherit all variables from their parent sensor, enabling flexible calculations that reference
-both the main sensor state and external entities.
+Attribute formulas automatically inherit all variables from their parent sensor, enabling flexible calculations that
+reference both the main sensor state and external entities.
 
 **Inheritance Rules:**
 
@@ -487,7 +483,7 @@ sensors:
 
 **Advanced Features:**
 
-- **Dynamic Queries**: Attribute formulas support all dynamic query types (`regex:`, `tags:`, etc.)
+- **Dynamic Queries**: Attribute formulas support all dynamic query types (`regex:`, `label:`, etc.)
 - **Dot Notation**: Access entity attributes using `entity.attribute_name` syntax
 - **Cross-References**: Reference other synthetic sensors by entity_id
 - **Runtime Resolution**: Dynamic queries are resolved at evaluation time based on current HA state
@@ -499,7 +495,8 @@ aggregation system while maintaining backward compatibility and comprehensive te
 
 ### Variable Inheritance System
 
-Attribute formulas now automatically inherit all variables from their parent sensor, enabling powerful calculation hierarchies:
+Attribute formulas now automatically inherit all variables from their parent sensor, enabling powerful calculation
+hierarchies:
 
 ```yaml
 sensors:
@@ -614,7 +611,7 @@ sensors:
 
   tagged_sensors_summary:
     name: "Tagged Sensors Summary"
-    formula: sum("tags:energy|monitoring|critical")
+    formula: sum("label:energy|monitoring|critical")
 
   high_value_or_active_states:
     name: "High Value or Active States"
@@ -622,14 +619,14 @@ sensors:
 
   comprehensive_monitoring:
     name: "Comprehensive Monitoring"
-    formula: 'sum("device_class:power|energy") + count("area:living_room|kitchen") + avg("tags:monitor|alert")'
+    formula: 'sum("device_class:power|energy") + count("area:living_room|kitchen") + avg("label:monitor|alert")'
 ```
 
 **Supported Pattern Types:**
 
 - `regex:pattern` - Match entity IDs using regular expressions
 - `device_class:class1|class2` - Match entities by device class with OR logic
-- `tags:tag1|tag2|tag3` - Match entities by labels/tags with OR logic (requires entity registry)
+- `label:tag1|tag2|tag3` - Match entities by labels/label with OR logic (requires entity registry)
 - `area:area_name1|area_name2` - Match entities in specific areas with OR logic
 - `attribute:attr_name<value|attr_name>value` - Match entities by attribute conditions with OR logic (=, !=, <, >, <=, >=)
 - `state:>value|=value|<value` - Match entities by state conditions with OR logic
@@ -744,7 +741,7 @@ enabling seamless integration with complex formulas.
 
 **Implementation Status:**
 
-- **Static Collection Patterns**: **IMPLEMENTED** with regex, device_class, area, tags, attribute, and state patterns
+- **Static Collection Patterns**: **IMPLEMENTED** with regex, device_class, area, label, attribute, and state patterns
 - **OR Logic Support**: **IMPLEMENTED** across all pattern types using pipe (`|`) syntax
 - **Dynamic Collection Variables**: **IMPLEMENTED** - Variable substitution within quoted strings
 - **Mathematical Functions**: **COMPREHENSIVE** library available

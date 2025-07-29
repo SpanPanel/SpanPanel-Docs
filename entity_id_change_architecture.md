@@ -3,18 +3,19 @@
 ## Overview
 
 The synthetic sensors system handles entity ID changes through a coordinated approach involving per-SensorSet entity indexes,
-bulk modification operations, and registry event storm protection. The primary goal is to prevent event thrashing when we initiate
-entity ID changes that would otherwise trigger cascading update cycles.
+bulk modification operations, and registry event storm protection. The primary goal is to prevent event thrashing when we
+initiate entity ID changes that would otherwise trigger cascading update cycles.
 
 ## Core Components
 
 ### Per-SensorSet Entity Index
 
 - **Purpose**: Tracks which entity IDs are actively referenced by sensors within a specific SensorSet for event filtering
-- **Scope**: Per-SensorSet, completely rebuilt whenever that SensorSet is modified  
-- **Content**: Set of ALL entity IDs referenced in sensor configurations, formula variables, and global settings within the SensorSet
+- **Scope**: Per-SensorSet, completely rebuilt whenever that SensorSet is modified
+- **Content**: Set of ALL entity IDs referenced in sensor configurations, formula variables, and global settings within the
+  SensorSet
 - **No Distinction**: Contains any entity_id reference - no distinction between synthetic and external entities
-- **Exclusions**: Dynamic patterns (device_class, regex, tags) are excluded since they're resolved at runtime
+- **Exclusions**: Dynamic patterns (device_class, regex, label) are excluded since they're resolved at runtime
 - **Location**: Owned by each SensorSet, not global
 - **Update Strategy**: Always rebuild entire index from final SensorSet state - no incremental updates
 
@@ -58,7 +59,7 @@ entity ID changes that would otherwise trigger cascading update cycles.
 
 #### Type 2: Entity ID Registry Changes (Storm Risk)
 
-- HA registry renames `sensor.power_meter` → `sensor.new_power_meter`  
+- HA registry renames `sensor.power_meter` → `sensor.new_power_meter`
 - This triggers registry events that could cause cascading updates
 - **Protection**: Pre-update EntityIndex, then ignore the events we caused
 
@@ -77,7 +78,8 @@ entity ID changes that would otherwise trigger cascading update cycles.
 - **No Synthetic vs External**: EntityIndex contains ANY entity_id reference found in the SensorSet
 - **Event Filtering Purpose**: Primary purpose is determining which SensorSets care about registry events
 - **Always Rebuild**: Never incremental updates - always rebuild entire index from final SensorSet state
-- **Self-References Included**: ConfigManager may inject self-references (e.g., for attribute formulas) - these are tracked too
+- **Self-References Included**: ConfigManager may inject self-references (e.g., for attribute formulas) - these are tracked
+  too
 
 ## Architecture Details
 
@@ -89,35 +91,35 @@ class SensorSet:
         self.storage_manager = storage_manager
         self.sensor_set_id = sensor_set_id
         self._entity_index = EntityIndex(storage_manager.hass)  # Per-SensorSet!
-        
+
     def is_entity_tracked(self, entity_id: str) -> bool:
         return self._entity_index.contains(entity_id)
-        
+
     async def async_modify(self, modification):
         # For entity ID changes: pre-update index for storm protection
         if modification.entity_id_changes:
             self._rebuild_entity_index_for_modification(modification)
-        
+
         # Apply all modifications
         # ... sensor changes, global settings changes ...
-        
+
         # Always rebuild index from final state
         self._rebuild_entity_index()
-        
+
     def _rebuild_entity_index_for_modification(self, modification):
         """Pre-update index to reflect final state for storm protection."""
         # Calculate what the final state will be after all modifications
         # Update index to reflect that final state BEFORE making changes
         # This ensures registry events we trigger get filtered out
-        
+
     def _rebuild_entity_index(self):
         """Always rebuild entire index from current SensorSet state."""
         self._entity_index.clear()
-        
+
         # Add from all current sensors
         for sensor in self.get_sensors():
             self._entity_index.add_sensor_entities(sensor)
-            
+
         # Add from current global settings
         if self.get_global_variables():
             self._entity_index.add_global_entities(self.get_global_variables())
@@ -129,12 +131,12 @@ class SensorSet:
 class EntityRegistryListener:
     def handle_entity_change(self, old_entity_id, new_entity_id):
         affected_sensor_sets = []
-        
+
         # Check which SensorSets track this entity
         for sensor_set in self.storage_manager.get_all_sensor_sets():
             if sensor_set.is_entity_tracked(old_entity_id):
                 affected_sensor_sets.append(sensor_set)
-        
+
         # Only process for SensorSets that care
         for sensor_set in affected_sensor_sets:
             sensor_set.handle_external_entity_change(old_entity_id, new_entity_id)
@@ -153,13 +155,13 @@ class EntityRegistryListener:
 - **Calculate final state** after all modifications
 - **Pre-update SensorSet's EntityIndex** to reflect final state (remove old entity IDs, add new ones)
 - Update sensor configurations with new entity IDs within the SensorSet
-- Update global settings within the SensorSet with new entity IDs  
+- Update global settings within the SensorSet with new entity IDs
 - **Update Home Assistant entity registry** (triggers events that get ignored)
 
 ### Phase 3: Configuration Changes
 
 - Remove sensors (if specified)
-- Update existing sensors (if specified)  
+- Update existing sensors (if specified)
 - Add new sensors (if specified)
 - Apply global settings changes
 
@@ -177,7 +179,7 @@ class EntityRegistryListener:
 - **Global Settings**: Scoped to the SensorSet, not truly global
 - **Bulk Operations**: Operate within a single SensorSet
 
-### What's Global  
+### What's Global
 
 - **Event Listener**: Receives all HA registry events, routes to relevant SensorSets
 - **StorageManager**: Coordinates multiple SensorSets
@@ -226,7 +228,7 @@ class EntityRegistryListener:
 - Clear error messages indicate specific conflicts within the SensorSet
 - SensorSet remains in consistent state after validation failures
 
-### Registry Update Failures  
+### Registry Update Failures
 
 - Entity registry updates may fail (e.g., entity doesn't exist in HA)
 - SensorSet storage updates continue even if registry updates fail
