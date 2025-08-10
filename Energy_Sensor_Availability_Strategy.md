@@ -123,21 +123,20 @@ The grace period is defaulted to **15 minutes (900 seconds)**.
 ## Synthetic Dependencies
 
 - **Synthetic Exception Handling**: `UNAVAILABLE` and `UNKNOWN` handlers with conditional logic
-- **Computed Variables**: `within_grace` variable with independent exception handling
+- **Computed Variables**: `within_grace` variable for time-based availability checks
 - **Global Variables**: `energy_grace_period_minutes` for runtime configuration
 - **Metadata Functions**: `metadata(state, 'last_changed')` for self-referential timestamp access
 - **DateTime Functions**: `now()` and `minutes_between()` for time calculations
-- **Diagnostic Attributes**: `grace_period_active` for monitoring
 - **State Token Resolution**: Automatic `state` token resolution to backing entity
 
 ## Synthetic Sensor Implementation
 
 ### Energy Sensor Template Structure
 
-All energy sensors use this standardized structure with the corrected implementation:
+All energy sensors use this standardized structure:
 
 ```yaml
-{{sensor_key}}:
+{ { sensor_key } }:
   name: "{{sensor_name}}"
   entity_id: "{{entity_id}}"
   formula: "state"
@@ -146,52 +145,16 @@ All energy sensors use this standardized structure with the corrected implementa
   variables:
     within_grace:
       formula: "minutes_between(metadata(state, 'last_changed'), now()) < energy_grace_period_minutes"
-      UNAVAILABLE: 'false'
-      UNKNOWN: 'false'
   attributes:
     tabs: "{{tabs_attribute}}"
-    voltage: {{voltage_attribute}}
-    grace_period_active:
-      formula: "within_grace"
+    voltage: { { voltage_attribute } }
+    energy_reporting_status:
+      formula: "'Live'"
   metadata:
     unit_of_measurement: "Wh"
     device_class: "energy"
     state_class: "total_increasing"
-    suggested_display_precision: {{energy_display_precision}}
-```
-
-### Solar Energy Sensors (Special Handling)
-
-Solar sensors include additional exception handling for leg components:
-
-```yaml
-{{sensor_key}}:
-  name: "Solar Consumed Energy"
-  entity_id: "{{entity_id}}"
-  formula: "leg1_consumed + leg2_consumed"
-  UNAVAILABLE: "state if within_grace else UNKNOWN"
-  UNKNOWN: "state if within_grace else UNKNOWN"
-  variables:
-    leg1_consumed: 
-      formula: "{{leg1_consumed_entity}}"
-      UNAVAILABLE: "leg1_consumed if within_grace else 0"
-    leg2_consumed: 
-      formula: "{{leg2_consumed_entity}}"
-      UNAVAILABLE: "leg2_consumed if within_grace else 0"
-    within_grace:
-      formula: "minutes_between(metadata(state, 'last_changed'), now()) < energy_grace_period_minutes"
-      UNAVAILABLE: 'false'
-      UNKNOWN: 'false'
-  attributes:
-    tabs: "{{tabs_attribute}}"
-    voltage: {{voltage_attribute}}
-    grace_period_active:
-      formula: "within_grace"
-  metadata:
-    unit_of_measurement: "Wh"
-    device_class: "energy"
-    state_class: "total_increasing"
-    suggested_display_precision: {{energy_display_precision}}
+    suggested_display_precision: { { energy_display_precision } }
 ```
 
 ## Grace Period Logic Breakdown
@@ -211,12 +174,12 @@ Solar sensors include additional exception handling for leg components:
 4. If within grace period: returns last known `state` value
 5. If beyond grace period: returns `UNKNOWN`
 
-**Key Implementation Details:**
+**Implementation Details:**
 
 - Uses `metadata(state, 'last_changed')` for self-referential timestamp access
 - `state` token automatically resolves to the sensor's backing entity
 - Both `UNAVAILABLE` and `UNKNOWN` handlers use the same grace period logic
-- `grace_period_active` attribute provides diagnostic visibility
+- `energy_reporting_status` attribute provides operational visibility
 
 ## Configuration Integration
 

@@ -15,103 +15,104 @@ next.
 
 ### Unique ID Helpers (Statistics Continuity)
 
-| Helper Function                                                    | Purpose                                       | Pattern                                                | Example Output                                       | Notes                                                    |
-| ------------------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
-| `build_circuit_unique_id(serial, circuit_id, description_key)`     | Pure function for circuit unique IDs          | `span_{serial}_{circuit_id}_{suffix}`                  | `span_abc123_0dad2f16cd514812ae1807b0457d473e_power` | ✅ Follows document pattern                              |
-| `build_panel_unique_id(serial, description_key)`                   | Pure function for panel unique IDs            | `span_{serial}_{suffix}`                               | `span_abc123_current_power`                          | ✅ Uses entity ID suffix via `get_panel_entity_suffix()` |
-| `build_switch_unique_id(serial, circuit_id)`                       | Pure function for switch unique IDs           | `span_{serial}_relay_{circuit_id}`                     | `span_abc123_relay_0dad2f16cd514812ae1807b0457d473e` | ✅ Switch-specific pattern                               |
-| `build_binary_sensor_unique_id(serial, description_key)`           | Pure function for binary sensor unique IDs    | `span_{serial}_{description_key}`                      | `span_abc123_doorState`                              | ✅ Binary sensor pattern                                 |
-| `build_select_unique_id(serial, select_id)`                        | Pure function for select unique IDs           | `span_{serial}_select_{select_id}`                     | `span_abc123_select_priority_mode`                   | ✅ Select-specific pattern                               |
-| `constuct_synthetic_unique_id(serial, sensor_name)`                | Pure function for synthetic sensor unique IDs | `span_{serial}_{sensor_name}`                          | `span_abc123_solar_total_power`                      | ✅ Synthetic sensor pattern                              |
-| `construct_unmapped_unique_id(span_panel, circuit_number, suffix)` | Unmapped circuit unique IDs                   | `span_{serial}_unmapped_tab_{circuit_number}_{suffix}` | `span_abc123_unmapped_tab_32_power`                  | ✅ Unmapped circuit pattern                              |
+| Helper Function                                                | Purpose                                       | Pattern                               | Example Output                                       | Notes                                                         |
+| -------------------------------------------------------------- | --------------------------------------------- | ------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
+| `build_circuit_unique_id(serial, circuit_id, description_key)` | Pure function for circuit unique IDs          | `span_{serial}_{circuit_id}_{suffix}` | `span_abc123_0dad2f16cd514812ae1807b0457d473e_power` | Suffix comes from `get_user_friendly_suffix(description_key)` |
+| `build_panel_unique_id(serial, description_key)`               | Pure function for panel unique IDs            | `span_{serial}_{entity_suffix}`       | `span_abc123_current_power`                          | Entity suffix via `get_panel_entity_suffix(description_key)`  |
+| `build_switch_unique_id(serial, circuit_id)`                   | Pure function for switch unique IDs           | `span_{serial}_relay_{circuit_id}`    | `span_abc123_relay_0dad2f16cd514812ae1807b0457d473e` |                                                               |
+| `build_binary_sensor_unique_id(serial, description_key)`       | Pure function for binary sensor unique IDs    | `span_{serial}_{description_key}`     | `span_abc123_doorState`                              |                                                               |
+| `build_select_unique_id(serial, select_id)`                    | Pure function for select unique IDs           | `span_{serial}_select_{select_id}`    | `span_abc123_select_priority_mode`                   |                                                               |
+| `construct_synthetic_unique_id(serial, sensor_name)`           | Pure function for synthetic sensor unique IDs | `span_{serial}_{sensor_name}`         | `span_abc123_solar_total_power`                      | `sensor_name` already includes suffix (e.g., `..._power`)     |
 
-### Unique ID Wrapper Helpers (Use Pure Functions Above)
+### Entry-Aware Unique ID Helpers (Live vs Simulator)
 
-| Helper Function                                                        | Purpose                         | Calls                             | Notes                                |
-| ---------------------------------------------------------------------- | ------------------------------- | --------------------------------- | ------------------------------------ |
-| `construct_circuit_unique_id(span_panel, circuit_id, description_key)` | Circuit unique ID wrapper       | `build_circuit_unique_id()`       | ✅ Good wrapper                      |
-| `construct_panel_unique_id(span_panel, description_key)`               | Panel unique ID wrapper         | `build_panel_unique_id()`         | ✅ Now uses correct entity ID suffix |
-| `construct_switch_unique_id(span_panel, circuit_id)`                   | Switch unique ID wrapper        | `build_switch_unique_id()`        | ✅ Good wrapper                      |
-| `construct_binary_sensor_unique_id(span_panel, description_key)`       | Binary sensor unique ID wrapper | `build_binary_sensor_unique_id()` | ✅ Good wrapper                      |
-| `construct_select_unique_id(span_panel, select_id)`                    | Select unique ID wrapper        | `build_select_unique_id()`        | ✅ Good wrapper                      |
+These helpers automatically choose the per-entry device identifier used across unique_ids:
+
+- Live panels: true panel serial number
+- Simulator entries: slugified device name (prevents cross-entry collisions)
+
+| Helper Function                                | Calls/Behavior                                                                   | Notes                               |
+| ---------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
+| `construct_panel_unique_id_for_entry(...)`     | Uses `_get_device_identifier_for_unique_ids(...)` → `build_panel_unique_id(...)` | Entry-aware device identifier       |
+| `construct_circuit_unique_id_for_entry(...)`   | Entry-aware identifier → `build_circuit_unique_id(...)`                          |                                     |
+| `build_switch_unique_id_for_entry(...)`        | Entry-aware identifier → `build_switch_unique_id(...)`                           |                                     |
+| `build_select_unique_id_for_entry(...)`        | Entry-aware identifier → `build_select_unique_id(...)`                           |                                     |
+| `build_binary_sensor_unique_id_for_entry(...)` | Entry-aware identifier → `build_binary_sensor_unique_id(...)`                    |                                     |
+| `construct_synthetic_unique_id_for_entry(...)` | Entry-aware identifier → `construct_synthetic_unique_id(...)`                    | Used for synthetic YAML sensor keys |
+
+### Suffix Mapping Helpers
+
+- `get_user_friendly_suffix(description_key)` → general, consistent suffixes for circuits and some panel sensors
+- `get_panel_entity_suffix(description_key)` → panel-specific mapping used for panel unique_id/entity suffixes
+
+Examples:
+
+- `instantPowerW` → `power`
+- `producedEnergyWh` → `energy_produced`
+- Panel mapping: `instantGridPowerW` → `current_power`, `dsmState` → `dsm_state`
 
 ### Entity ID Helpers (User-Facing Naming)
 
-| Helper Function                                                                                                           | Purpose                    | Naming Strategy                   | Configuration Flags                        | Notes                                |
-| ------------------------------------------------------------------------------------------------------------------------- | -------------------------- | --------------------------------- | ------------------------------------------ | ------------------------------------ |
-| `construct_entity_id(coordinator, span_panel, platform, circuit_name, circuit_number, suffix, unique_id)`                 | Generic circuit entity ID  | Circuit name or number based      | `USE_CIRCUIT_NUMBERS`, `USE_DEVICE_PREFIX` | ✅ Handles both naming strategies    |
-| `construct_panel_entity_id(coordinator, span_panel, platform, suffix, unique_id)`                                         | Panel-level entity ID      | Always friendly naming            | `USE_DEVICE_PREFIX`                        | ✅ Panel sensors don't have circuits |
-| `construct_single_circuit_entity_id(coordinator, span_panel, platform, suffix, circuit_data, unique_id)`                  | Single circuit entity ID   | Circuit name or number based      | `USE_CIRCUIT_NUMBERS`, `USE_DEVICE_PREFIX` | ✅ For individual circuits           |
-| `construct_multi_circuit_entity_id(coordinator, span_panel, platform, suffix, circuit_numbers, friendly_name, unique_id)` | Multi-circuit entity ID    | Circuit numbers or friendly name  | `USE_CIRCUIT_NUMBERS`, `USE_DEVICE_PREFIX` | ✅ For combining circuits            |
-| `construct_solar_synthetic_entity_id(coordinator, span_panel, platform, suffix, friendly_name, unique_id, leg1, leg2)`    | Solar synthetic entity ID  | Calls multi-circuit helper        | `USE_CIRCUIT_NUMBERS`, `USE_DEVICE_PREFIX` | ✅ Wrapper for solar case            |
-| `construct_unmapped_entity_id(span_panel, circuit_id, suffix)`                                                            | Unmapped circuit entity ID | Always device prefix + circuit_id | None (always device prefix)                | ✅ Unmapped always visible           |
+Entity IDs respect user customizations by checking the registry first when `unique_id` is provided. They also honor
+integration options like `USE_DEVICE_PREFIX` and `USE_CIRCUIT_NUMBERS`.
+
+| Helper Function                                                                                                   | Purpose                               | Key Behaviors                                                                              |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `construct_entity_id(...)`                                                                                        | Generic circuit entity IDs            | Device prefix optional; circuit numbers vs friendly name; avoids duplicate trailing suffix |
+| `construct_panel_entity_id(...)`                                                                                  | Panel-level entity IDs                | Device prefix optional; registry lookup by `unique_id`                                     |
+| `construct_single_circuit_entity_id(...)`                                                                         | Single-circuit entity IDs             | Circuit numbers vs friendly name, device prefix optional                                   |
+| `construct_multi_circuit_entity_id(...)`                                                                          | Multi-circuit (e.g., 240V) entity IDs | Uses tab list or friendly name; device prefix optional; registry lookup by `unique_id`     |
+| `construct_panel_synthetic_entity_id(...)`                                                                        | Panel synthetic entity IDs            | Device prefix optional; registry lookup by `unique_id`                                     |
+| `construct_240v_synthetic_entity_id(...)`, `construct_120v_synthetic_entity_id(...)`                              | Synthetic circuit entity IDs          | Uses tab numbers and friendly name                                                         |
+| `construct_multi_tab_entity_id_from_key(coordinator, span_panel, platform, sensor_key, sensor_config, unique_id)` | Entity ID from synthetic key/config   | Parses tabs attribute, solar keys, or name to dispatch to correct helper                   |
 
 ### Backing Entity Helpers (Internal References)
 
-| Helper Function                                               | Purpose                            | Pattern                                       | Example Output                        | Notes                       |
-| ------------------------------------------------------------- | ---------------------------------- | --------------------------------------------- | ------------------------------------- | --------------------------- |
-| `construct_backing_entity_id(span_panel, circuit_id, suffix)` | Internal backing entity references | `span_{serial}_{circuit_id}_backing_{suffix}` | `span_abc123_0_backing_current_power` | ✅ Follows document pattern |
+| Helper Function                                | Purpose                            | Pattern                                                        | Example Output                               | Notes                               |
+| ---------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- | -------------------------------------------- | ----------------------------------- |
+| `construct_backing_entity_id(span_panel, ...)` | Internal backing entity references | `sensor.span_{serial}_{circuit_id_or_0}_backing_{suffix}`      | `sensor.span_abc123_0_backing_current_power` | Not registered; used only in YAML   |
+| `construct_backing_entity_id_for_entry(...)`   | Entry-aware backing IDs            | `sensor.span_{identifier}_{circuit_id_or_0}_backing_{suffix}`  | `sensor.span_simdev_0_backing_current_power` | Simulator-safe identifier           |
+| `construct_unmapped_unique_id(...)`            | Unmapped circuit unique IDs        | `span_{serial}_unmapped_tab_{circuit_number}_{suffix}`         | `span_abc123_unmapped_tab_32_power`          | Native operand providers            |
+| `construct_unmapped_entity_id(...)`            | Unmapped circuit entity IDs        | `sensor.{device_prefix}_unmapped_tab_{tab}_{suffix}`           | `sensor.span_panel_unmapped_tab_32_power`    | Always device prefix for visibility |
+| `get_unmapped_circuit_entity_id(...)`          | Unmapped entity ID lookup          | Convenience wrapper around `construct_unmapped_entity_id(...)` |                                              |                                     |
 
-### Friendly Name Helpers
+**Device Identifier Behavior:** `_get_device_identifier_for_unique_ids`
 
-| Helper Function                                                             | Purpose                         | Notes                            |
-| --------------------------------------------------------------------------- | ------------------------------- | -------------------------------- |
-| `construct_panel_friendly_name(description_name)`                           | Panel sensor friendly names     | ✅ Simple string conversion      |
-| `construct_status_friendly_name(description_name)`                          | Status sensor friendly names    | ✅ Simple string conversion      |
-| `construct_unmapped_friendly_name(circuit_number, sensor_description_name)` | Unmapped circuit friendly names | ✅ Format: "Unmapped Tab X Name" |
+- Live entries: use true panel serial number
+- Simulator entries: use slugified device name (e.g., config entry title), ensuring no cross-entry collisions
 
-### Utility Helpers
+## Synthetic Sensors
 
-| Helper Function                                                  | Purpose                                    | Notes                      |
-| ---------------------------------------------------------------- | ------------------------------------------ | -------------------------- |
-| `get_user_friendly_suffix(description_key)`                      | Convert API keys to user-friendly suffixes | ✅ Used by build functions |
-| `get_circuit_number(circuit)`                                    | Extract circuit number from circuit object | ✅ Gets tab position       |
-| `get_friendly_name_from_registry(hass, unique_id, default_name)` | Check for user customizations              | ✅ Respects user changes   |
+The `ha-synthetic-sensors` library uses the top-level sensor key from the YAML file directly as the `unique_id` for the
+sensor. However, to ensure this key is globally unique and prevent collisions, the **SPAN integration** constructs this key
+_before_ passing it to the library.
 
-### Redundant/Problematic Helpers
+The SPAN integration constructs the key by combining the per-entry device identifier (serial for live, slugified device name
+for simulator entries) with a descriptive sensor name.
 
-| Helper Function                                                                      | Issue                                        | Recommendation                                             |
-| ------------------------------------------------------------------------------------ | -------------------------------------------- | ---------------------------------------------------------- |
-| ~~`construct_sensor_manager_unique_id(serial_number, circuit_id, description_key)`~~ | ~~Duplicates circuit/panel unique ID logic~~ | ✅ **REMOVED** - functionality covered by existing helpers |
+**Unique ID Pattern (Constructed by SPAN Integration):** `span_{identifier}_{sensor_name}`
 
-### Previously Missing Helpers (Now Resolved)
+Examples:
 
-| Needed Helper                           | Purpose                  | Pattern                                                | Status                                                         |
-| --------------------------------------- | ------------------------ | ------------------------------------------------------ | -------------------------------------------------------------- |
-| `construct_circuit_backing_entity_id()` | Circuit backing entities | `span_{serial}_{circuit_id}_backing_{description_key}` | ✅ **NOT NEEDED** - covered by `construct_backing_entity_id()` |
-| `construct_panel_backing_entity_id()`   | Panel backing entities   | `span_{serial}_backing_{description_key}`              | ✅ **NOT NEEDED** - covered by `construct_backing_entity_id()` |
+- Panel synthetic: `span_sp3-001_current_power`
+- Solar total: `span_sp3-001_solar_total_power`
 
-**Implementation**: Panel unique ID construction now uses `get_panel_entity_suffix()` which provides direct
-API-to-entity-suffix mapping for consistency.
+This constructed key is then used as the `unique_id` in the Home Assistant entity registry, ensuring data continuity for
+statistics.
 
-**How circuit_id is determined:**
+## YAML Generation for Synthetic Sensors
 
-- The `circuit_id` is taken directly from the `id` field in each circuit object returned by the SPAN panel API.
-- This value is a UUID-style string (e.g., "0dad2f16cd514812ae1807b0457d473e").
-- For example, if the API returns:
+YAML content is generated by the synthetic coordinator and imported into storage:
 
-```json
-"circuits": {
-  "0dad2f16cd514812ae1807b0457d473e": {
-    "id": "0dad2f16cd514812ae1807b0457d473e",
-    "name": "Lights Dining Room",
-    ...
-  }
-}
-```
+- `SyntheticSensorCoordinator._construct_complete_yaml_config(...)` builds the YAML document with `global_settings` and
+  `sensors` mappings
+- Sensor keys in YAML come from `construct_synthetic_unique_id_for_entry(...)`
+- Strings are force-quoted to avoid misinterpretation (custom YAML representer)
 
-- The unique_id for a power sensor on this circuit would be:
+Key points:
 
-```text
-span_{serial_number}_0dad2f16cd514812ae1807b0457d473e_instantPowerW
-```
-
-- The SPAN HA Integration always uses the exact value of the `id` field as the circuit_id in the unique_id pattern.
-
-**Implications for unique_id stability:**
-
-- The unique_id for each sensor is stable as long as the panel API provides a stable `circuit_id` for each circuit.
-- The SPAN HA Integration does not invent or remap circuit_ids; it uses what the panel API provides.
+- Global settings include `device_identifier` used by the synthetic layer for device association and entity_id generation
+- Backing entity mapping is prepared and registered before sensor creation
 
 ## Integration Defined Circuit Entities
 
@@ -135,10 +136,17 @@ migrate old patterns with config schema v2.0.
 
 ## Synthetic Sensors
 
-Synthetic circuits use the sensor top level key as the unique ID. Whatever that senosr key reflects is directly created in
-the registry as the unique ID. As seen in the examples for 'Regular Circuits' the unique ID is generated from the
-span-panel-api package sensors directly reflecting what the SPAN panel returns for circuit data. User defined circuits are
-hand crafted but again these sensor keys must be unique.
+The `ha-synthetic-sensors` library uses the top-level sensor key from the YAML file directly as the `unique_id` for the
+sensor. However, to ensure this key is globally unique and prevent collisions, the **SPAN integration** is responsible for
+constructing this key _before_ it is passed to the library.
+
+The SPAN integration constructs the key by combining the panel's serial number (as a `device_identifier`) with a descriptive
+sensor name.
+
+**Unique ID Pattern (Constructed by SPAN Integration):** `span_{serial_number}_{sensor_key}`
+
+This constructed key is then used as the `unique_id` in the Home Assistant entity registry, ensuring data continuity for
+statistics.
 
 ## Integration-Managed Multi-Tab/240V Synthetics
 
@@ -146,8 +154,8 @@ The SpanPanel integration allows configuration of synthetic sensors that combine
 produce a 240V measurement—such as summing two 120V legs for power and energy. This is commonly used for solar, but can also
 be used for other multi-tab circuits (e.g., 240V appliances).
 
-The unique key for these synthetic sensors is the sensor key at the top level of the YAML/config. The unique ID and entity_id
-logic for these sensors is now consistent with all other synthetic sensors, following the standard patterns described above.
+The unique ID logic for these sensors is now consistent with all other synthetic sensors. The SPAN integration constructs a
+globally unique key (e.g., `span_{serial_number}_solar_total_power`), which is then used as the `unique_id` for the entity.
 This ensures stability and compatibility for statistics and migration.
 
 ### Legacy Solar Sensors (Pre-v1.2.0)
