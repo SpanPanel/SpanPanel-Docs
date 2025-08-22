@@ -6,6 +6,7 @@ __pycache__/
 # Testing
 .pytest_cache/
 .coverage
+.local_coverage_data
 htmlcov/
 .tox/
 .cache

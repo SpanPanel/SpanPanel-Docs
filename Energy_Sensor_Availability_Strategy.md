@@ -49,17 +49,17 @@ Home Assistant calculates: 1002 - 1000 = 2 kWh used in 4 minutes ✓
 **Behavior During Outages:**
 
 - Remain `available` for up to 15 minutes during panel outages
-- Continue showing last known values via `state` token resolution
+- Continue showing last known values during the grace period
 - Resume normal operation when panel reconnects
-- Go `UNKNOWN` only after 15 minutes of continuous outage
+- Go `UNKNOWN` (the None value of the backing entities) only after 15 minutes of continuous outage
 
 ### Non-Energy Sensors (Immediate Availability)
 
 **Affected Sensors:**
 
-- Power sensors (instantaneous measurements)
-- Status sensors (door state, connection status)
-- Configuration sensors
+- Power sensors (instantaneous measurements) will show 0.0
+- Status sensors (door state, connection status) will be unavailable
+- Configuration sensors will be unavailable
 - Any sensor without `state_class=TOTAL_INCREASING`
 
 **Behavior During Outages:**
@@ -122,68 +122,11 @@ The grace period is defaulted to **15 minutes (900 seconds)**.
 
 ## Synthetic Dependencies
 
-- **Synthetic Exception Handling**: `UNAVAILABLE` and `UNKNOWN` handlers with conditional logic
-- **Computed Variables**: `within_grace` variable for time-based availability checks
-- **Global Variables**: `energy_grace_period_minutes` for runtime configuration
-- **Metadata Functions**: `metadata(state, 'last_changed')` for self-referential timestamp access
-- **DateTime Functions**: `now()` and `minutes_between()` for time calculations
-- **State Token Resolution**: Automatic `state` token resolution to backing entity
-
 ## Synthetic Sensor Implementation
 
 ### Energy Sensor Template Structure
 
-All energy sensors use this standardized structure:
-
-```yaml
-{ { sensor_key } }:
-  name: "{{sensor_name}}"
-  entity_id: "{{entity_id}}"
-  formula: "state"
-  UNAVAILABLE: "state if within_grace else UNKNOWN"
-  UNKNOWN: "state if within_grace else UNKNOWN"
-  variables:
-    within_grace:
-      formula: "minutes_between(metadata(state, 'last_changed'), now()) < energy_grace_period_minutes"
-  attributes:
-    tabs: "{{tabs_attribute}}"
-    voltage: { { voltage_attribute } }
-    energy_reporting_status:
-      formula: "'Live'"
-  metadata:
-    unit_of_measurement: "Wh"
-    device_class: "energy"
-    state_class: "total_increasing"
-    suggested_display_precision: { { energy_display_precision } }
-```
-
 ## Grace Period Logic Breakdown
-
-**Normal Operation:**
-
-1. `formula: "state"` - Direct passthrough of backing entity value via `state` token
-2. No exception handling triggered when backing entity is available
-3. `within_grace` computed variable evaluates to `false` (no outage detected)
-
-**During Panel Outage:**
-
-1. Backing entity becomes unavailable
-2. `UNAVAILABLE` handler triggers: `"state if within_grace else UNKNOWN"`
-3. `within_grace` computed variable evaluates:
-   `"minutes_between(metadata(state, 'last_changed'), now()) < energy_grace_period_minutes"`
-4. If within grace period: returns last known `state` value
-5. If beyond grace period: returns `UNKNOWN`
-
-**Implementation Details:**
-
-- Uses `metadata(state, 'last_changed')` for self-referential timestamp access
-- `state` token automatically resolves to the sensor's backing entity
-- Both `UNAVAILABLE` and `UNKNOWN` handlers use the same grace period logic
-- `energy_reporting_status` attribute provides operational visibility
-
-## Configuration Integration
-
-### Global Variable Configuration
 
 The header template includes the configurable grace period:
 
@@ -213,7 +156,3 @@ sensors:
 - **Validation**: Integer values only
 - **Description**: "How long energy sensors maintain their last known value when the panel becomes unavailable (0-60
   minutes). Helps preserve energy statistics integrity during brief outages."
-
-```
-
-```

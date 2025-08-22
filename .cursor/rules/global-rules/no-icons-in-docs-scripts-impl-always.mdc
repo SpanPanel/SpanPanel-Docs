@@ -1,0 +1,35 @@
+---
+# No Icons in Documentation, Scripts, or Implementation Files
+
+## Critical Rules
+
+- MUST NOT use icons, emojis, or special characters in documentation, scripts, or implementation files unless specifically directed by the user
+- MUST use clean, professional language without visual embellishments in all code and documentation
+- MUST avoid decorative elements like 🎉, ✅, ❌, 📁, 🔧, etc. in print statements, comments, or documentation
+- MUST maintain professional tone suitable for production environments and automated systems
+- MUST only use icons/emojis when explicitly requested by the user in their instructions
+
+## Examples
+
+<example>
+  # Professional output without icons
+  print("Migration test completed successfully!")
+  print("Check /tmp/span_migration_test_config.yaml for the full configuration")
+  print("The v2 migration process appears to be working correctly")
+  
+  # Clean documentation
+  ## Summary
+  The script validates the migration process and generates test configurations.
+</example>
+
+<example type="invalid">
+  # Using icons without being requested
+  print("🎉 Migration test completed successfully!")
+  print("📁 Check /tmp/span_migration_test_config.yaml for the full configuration")
+  print("✅ The v2 migration process appears to be working correctly")
+  
+  # Decorative documentation
+  ## 🎯 Summary
+  The script validates the migration process and generates test configurations.
+</example>
+---
